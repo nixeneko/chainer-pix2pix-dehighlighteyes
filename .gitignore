@@ -1,0 +1,7 @@
+
+self_dataset.py
+train.py
+trained_model/dec_iter_176000.npz
+result*
+.git/
+__pycache__/
