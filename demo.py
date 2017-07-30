@@ -6,17 +6,24 @@ from __future__ import print_function
 import argparse
 import os
 
+import zipfile, shutil
+from PIL import Image
+import cv2
+
 import chainer
+from chainer.serializers.npz import NpzDeserializer
 import numpy as np
+
 
 from net import Encoder
 from net import Decoder
 
-from PIL import Image
-import cv2
+
 
 ENC_W = "trained_model/enc_iter_176000.npz"
-DEC_W = "trained_model/dec_iter_176000.npz"
+#DEC_W = "trained_model/dec_iter_176000.npz"
+# to avoid GitHub 100M limit, one .npz files are divided into two zip files.
+DEC_Ws = ["trained_model/dec_iter_176000.npz0","trained_model/dec_iter_176000.npz1"]
 
 def loadimg(imgpath, min_wh=256):
     img = Image.open(imgpath)
@@ -25,18 +32,18 @@ def loadimg(imgpath, min_wh=256):
     # resize images so that min(w, h) == min_wh
     img = img.resize((int(r*w), int(r*h)), Image.BILINEAR)
     img = np.asarray(img).astype("f").transpose(2,0,1)/128.0-1.0
-    return img
+    return img[:,0:256,0:256] # crop so that the shape be (3, 256, 256)
     
 def to_bgr(ary):
-    print(ary.shape)
-    bgr = np.asarray(ary)[::-1]
-    print(bgr.shape)
+    # input shape: (c, h, w)
+    # print(ary.shape)
+    bgr = np.asarray(ary)[::-1] # rgb to bgr
+    # print(bgr.shape)
     bgrimg = bgr.transpose(1,2,0) / 2 + 0.5 # [0, 1]
-    print(bgrimg.shape)
+    # print(bgrimg.shape)
     #bgrimgint = (bgrimg * 128.0 + 128.0).astype("i")
     
     return bgrimg
-    #((np.asarray(ary)[::-1].transpose(1,2,0) + 1.0) * 128.0).astype("i")
     
 def main():
     parser = argparse.ArgumentParser(description='chainer implementation of pix2pix')
@@ -53,7 +60,18 @@ def main():
     dec = Decoder(out_ch=3)
     
     chainer.serializers.load_npz(ENC_W, enc)
-    chainer.serializers.load_npz(DEC_W, dec)
+    # to avoid GitHub 100M limit, merge two files to restore the .npz file
+    # if not os.path.exists(DEC_W):
+        # shutil.copy(DEC_Ws[0], DEC_W)
+        # with zipfile.ZipFile(DEC_W, 'a') as zp0:
+            # zp1 = zipfile.ZipFile(DEC_Ws[1], 'r')
+            # print(zp1.namelist())
+            # for n in zp1.namelist():
+                # zp0.writestr(n, zp1.open(n).read())
+    for npzfile in DEC_Ws:
+        with np.load(npzfile) as f:
+            d = NpzDeserializer(f, strict=False)
+            d.load(dec)
     
     if args.gpu >= 0:
         chainer.cuda.get_device(args.gpu).use()  # Make a specified GPU current
