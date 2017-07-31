@@ -5,3 +5,6 @@ trained_model/dec_iter_176000.npz
 result*
 .git/
 __pycache__/
+*.mp4
+*.m4v
+*.avi
