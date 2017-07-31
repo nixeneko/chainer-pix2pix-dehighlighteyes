@@ -88,7 +88,10 @@ def main():
     z = enc(x_in)
     x_out = dec(z)
 
-    outimg = x_out.data.get()[0]
+    if args.gpu >= 0:
+        outimg = x_out.data.get()[0]
+    else:
+        outimg = x_out.data[0]
     #img_show = np.zeros((inimg.shape[0], inimg.shape[1], inimg.shape[2]*2))
     #img_show[:,:,:inimg.shape[2]] = inimg
     #img_show[:,:outimg.shape[1],inimg.shape[2]:inimg.shape[2]+outimg.shape[2]] = outimg
