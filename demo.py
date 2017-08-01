@@ -6,7 +6,7 @@ from __future__ import print_function
 import argparse
 import os
 
-import zipfile, shutil
+import math
 from PIL import Image
 import cv2
 
@@ -18,8 +18,7 @@ import numpy as np
 from net import Encoder
 from net import Decoder
 
-
-
+# trained models
 ENC_W = "trained_model/enc_iter_176000.npz"
 #DEC_W = "trained_model/dec_iter_176000.npz"
 # to avoid GitHub 100M limit, one .npz files are divided into two zip files.
@@ -27,12 +26,12 @@ DEC_Ws = ["trained_model/dec_iter_176000.npz0","trained_model/dec_iter_176000.np
 
 def loadimg(imgpath, min_wh=256):
     img = Image.open(imgpath)
-    w,h = img.size
-    r = min_wh/min(w,h)
+    #w,h = img.size
+    #r = min_wh/min(w,h)
     # resize images so that min(w, h) == min_wh
-    img = img.resize((int(r*w), int(r*h)), Image.BILINEAR)
+    #img = img.resize((int(r*w), int(r*h)), Image.BILINEAR)
     img = np.asarray(img).astype("f").transpose(2,0,1)/128.0-1.0
-    return img[:,0:256,0:256] # crop so that the shape be (3, 256, 256)
+    return img
     
 def to_bgr(ary):
     # input shape: (c, h, w)
@@ -60,14 +59,7 @@ def main():
     dec = Decoder(out_ch=3)
     
     chainer.serializers.load_npz(ENC_W, enc)
-    # to avoid GitHub 100M limit, merge two files to restore the .npz file
-    # if not os.path.exists(DEC_W):
-        # shutil.copy(DEC_Ws[0], DEC_W)
-        # with zipfile.ZipFile(DEC_W, 'a') as zp0:
-            # zp1 = zipfile.ZipFile(DEC_Ws[1], 'r')
-            # print(zp1.namelist())
-            # for n in zp1.namelist():
-                # zp0.writestr(n, zp1.open(n).read())
+    # to avoid GitHub 100M limit, 1 .npz file is devided into 2 files
     for npzfile in DEC_Ws:
         with np.load(npzfile) as f:
             d = NpzDeserializer(f, strict=False)
@@ -79,7 +71,11 @@ def main():
         dec.to_gpu()
 
     inimg = loadimg(args.img)
-    x_in = inimg[np.newaxis,:]
+    ch, h, w = inimg.shape
+    # add paddings so that input array has the size of mutiples of 256.
+    in_ary = np.zeros((ch,math.ceil(h/256)*256, math.ceil(w/256)*256), dtype="f") 
+    in_ary[:,0:h,0:w] = inimg
+    x_in = in_ary[np.newaxis,:] # to fit into the minibatch shape
     print(x_in.shape)
     # x_in as an input image
     x_in = chainer.Variable(x_in)
@@ -89,16 +85,17 @@ def main():
     x_out = dec(z)
 
     if args.gpu >= 0:
-        outimg = x_out.data.get()[0]
+        out_ary = x_out.data.get()[0]
     else:
-        outimg = x_out.data[0]
+        out_ary = x_out.data[0]
     #img_show = np.zeros((inimg.shape[0], inimg.shape[1], inimg.shape[2]*2))
     #img_show[:,:,:inimg.shape[2]] = inimg
     #img_show[:,:outimg.shape[1],inimg.shape[2]:inimg.shape[2]+outimg.shape[2]] = outimg
+    outimg = out_ary[:,0:h,0:w] # trim paddings
     img_show = np.concatenate((inimg, outimg), axis=2)
     bgrpic = to_bgr(img_show).copy()
     cv2.putText(bgrpic,"input",(3,15),cv2.FONT_HERSHEY_DUPLEX, 0.5,(255,0,0))
-    cv2.putText(bgrpic,"output",(259,15),cv2.FONT_HERSHEY_DUPLEX, 0.5,(255,0,0))
+    cv2.putText(bgrpic,"output",(w+3,15),cv2.FONT_HERSHEY_DUPLEX, 0.5,(255,0,0))
     cv2.imshow("result", bgrpic)
     cv2.waitKey()
     
