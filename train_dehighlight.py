@@ -19,6 +19,7 @@ from updater import PicUpdater
 from img_dataset import ImgDataset
 from pic_visualizer import out_image
 
+# dataset paths
 DATASET_SRC = "D:/animeface_dataset/highlight/src"
 DATASET_DST = "D:/animeface_dataset/highlight/dst"
 
