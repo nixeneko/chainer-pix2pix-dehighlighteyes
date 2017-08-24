@@ -7,7 +7,7 @@ This modified version enables to train on datasets with any RGB color image pair
 ## Trained model
 This repository contains a trained model which was trained on the dataset which contains pictures of animation characters as input and corresponding character face images with no highlight on eyes as target (ground truth).
 
-The model is trained with 450 pairs of images as an training set and 50 pairs as an verification set.
+The model is trained with 450 pairs of images as a training set and 50 pairs as a verification set.
 
 # Example result of the trained model
 <img src="https://raw.githubusercontent.com/nixeneko/chainer-pix2pix-dehighlighteyes/master/example.jpg">
